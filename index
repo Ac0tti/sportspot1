@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SportSpot - Your Ultimate Sports Guide</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet-routing-machine/dist/leaflet-routing-machine.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #c7c0d9;
+            margin: 0;
+            padding: 0;
+            color: #333;
+        }
+        header {
+            background-color: #1d1d52;
+            padding: 20px;
+            text-align: center;
+            color: white;
+        }
+        header h1 {
+            font-size: 36px;
+            margin: 0;
+        }
+        #intro {
+            text-align: center;
+            margin: 30px 0;
+            padding: 20px;
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            max-width: 800px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        #intro h2 {
+            color: #1a1b43;
+        }
+        #intro p {
+            font-size: 18px;
+            line-height: 1.6;
+        }
+        #map {
+            height: 600px;
+            width: 100%;
+        }
+        #clear-route {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            z-index: 1000;
+            background: #f44336;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            display: none;
+        }
+        .services {
+            display: flex;
+            justify-content: space-around;
+            margin: 40px 0;
+            text-align: center;
+        }
+        .service-item {
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            width: 30%;
+        }
+        .service-item h3 {
+            color: #1f1845;
+        }
+        .service-item p {
+            font-size: 16px;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>Welcome to SportSpot</h1>
+    </header>
+
+    <div id="intro">
+        <h2>About SportSpot</h2>
+        <p>
+            SportSpot is your ultimate sports guide! Whether you are looking for the nearest gym, sports field, or healthy restaurant,
+            we've got you covered. Our platform makes it easy for athletes and fitness enthusiasts to find the best places nearby, 
+            complete with details like contact numbers, reviews, and ratings. Save time and focus on what matters most—your fitness journey.
+        </p>
+    </div>
+
+    <div class="services">
+        <div class="service-item">
+            <h3>Find Nearby Gyms</h3>
+            <p>Quickly locate gyms based on your location. Whether you're looking for a men's or women's gym, we have it covered.</p>
+        </div>
+        <div class="service-item">
+            <h3>Discover Sports Fields</h3>
+            <p>Locate sports fields and arenas for your next game, whether it’s soccer, tennis, or basketball.</p>
+        </div>
+        <div class="service-item">
+            <h3>Healthy Eating Spots</h3>
+            <p>Find restaurants that offer healthy and nutritious meals to fuel your workout and keep you on track.</p>
+        </div>
+    </div>
+
+    <div id="map"></div>
+    <button id="clear-route">Clear Directions</button>
+
+    <script>
+        // Initialize the map and set the view to Dumat Al-Jandal
+        const map = L.map('map').setView([29.8103, 39.8686], 14); // مركز دومة الجندل
+
+        // Add colorful tiles (CartoDB Positron)
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+            attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors © <a href="https://carto.com/">CARTO</a>',
+            subdomains: 'abcd',
+            maxZoom: 20
+        }).addTo(map);
+
+        // Locations array (with precise coordinates for Dumat Al-Jandal)
+        const locations = [
+            {
+                name: "Glitter Center",
+                type: "Women-only Gym",
+                phone: "0555469820",
+                position: [29.8132, 39.8667],
+                image: "https://via.placeholder.com/150?text=Glitter+Center",
+                details: "A well-equipped women-only gym with a friendly environment and professional trainers."
+            },
+            {
+                name: "Al-Estorah Gym",
+                type: "Men-only Gym",
+                phone: "0542348645",
+                position: [29.8165, 39.8624],
+                image: "https://via.placeholder.com/150?text=Al-Estorah+Gym",
+                details: "Popular among men for its high-quality equipment and spacious training area."
+            },
+            {
+                name: "FE Muscles Gym",
+                type: "Men-only Gym",
+                phone: "0504768100",
+                position: [29.8174, 39.8698],
+                image: "https://via.placeholder.com/150?text=FE+Muscles+Gym",
+                details: "Great choice for fitness enthusiasts who love weightlifting and strength training."
+            },
+            {
+                name: "Al-Mubarakiah Stable",
+                type: "Men and Women Stable",
+                phone: "0503901786",
+                position: [29.8191, 39.8573],
+                image: "https://via.placeholder.com/150?text=Al-Mubarakiah+Stable",
+                details: "Known for its authentic Arabian horses and amazing horse riding experiences."
+            }
+        ];
+
+        // Routing control (initialize but do not add to the map yet)
+        let routingControl = null;
+
+        // Button to clear route
+        const clearRouteButton = document.getElementById('clear-route');
+        clearRouteButton.addEventListener('click', () => {
+            if (routingControl) {
+                map.removeControl(routingControl); // Remove previous route
+                routingControl = null; // Reset routingControl variable
+            }
+            clearRouteButton.style.display = 'none'; // Hide the "Clear Directions" button
+        });
+
+        // Add markers and popups for locations
+        locations.forEach(location => {
+            const marker = L.marker(location.position).addTo(map);
+            marker.bindPopup(`
+                <b>${location.name}</b><br>
+                <img src="${location.image}" alt="${location.name}" style="width:150px; height:auto; margin-top:10px;"><br>
+                Type: ${location.type}<br>
+                Phone: ${location.phone}<br>
+                <p>${location.details}</p>
+                <button onclick="getRoute([${location.position}])">Get Directions</button>
+            `);
+        });
+
+        // Function to get route and display directions
+        function getRoute(destination) {
+            if (routingControl) {
+                map.removeControl(routingControl); // Remove previous route
+            }
+            routingControl = L.Routing.control({
+                waypoints: [
+                    L.latLng(map.getCenter()), // Current map center (can be user location)
+                    L.latLng(destination)
+                ],
+                routeWhileDragging: true,
+                showAlternatives: true
+            }).addTo(map);
+            clearRouteButton.style.display = 'block'; // Show "Clear Directions" button
+        }
+    </script>
+</body>
+</html>
